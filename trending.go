@@ -84,6 +84,12 @@ type Project struct {
 	// This number don`t reflect the overall stars of the project.
 	Stars int
 
+	// TotalStars is the total number of github stars this project received by this project.
+	TotalStars int
+
+	// Forks is the number of forks this project.
+	Forks int
+
 	// URL is the http(s) address of the project reflected as url.URL datastructure like "https://github.com/Workiva/go-datastructures".
 	URL *url.URL
 
@@ -207,13 +213,34 @@ func (t *Trending) GetProjects(time, language string) ([]Project, error) {
 			language = ""
 		}
 
-		starsString := s.Find("div.f6 a").First().Text()
-		starsString = strings.TrimSpace(starsString)
-		starsString = strings.Replace(starsString, ",", "", 1)
-		starsString = strings.Replace(starsString, ".", "", 1)
+		totalStarsString := s.Find("div.f6 a").First().Text()
+		totalStarsString = strings.TrimSpace(totalStarsString)
+		totalStarsString = strings.Replace(totalStarsString, ",", "", 1)
+		totalStarsString = strings.Replace(totalStarsString, ".", "", 1)
+		totalStars, err := strconv.Atoi(totalStarsString)
+		if err != nil {
+			totalStars = 0
+		}
+
+		var starsString string
+		if language == "" {
+			starsString = s.Find("div.f6 span").Eq(1).Text()
+		} else {
+			starsString = s.Find("div.f6 span").Eq(4).Text()
+		}
+		starsString = starsString[:strings.Index(starsString, "stars")-1]
 		stars, err := strconv.Atoi(starsString)
 		if err != nil {
 			stars = 0
+		}
+
+		forksString := s.Find("div.f6 a").Eq(1).Text()
+		forksString = strings.TrimSpace(forksString)
+		forksString = strings.Replace(forksString, ",", "", 1)
+		forksString = strings.Replace(forksString, ".", "", 1)
+		forks, err := strconv.Atoi(forksString)
+		if err != nil {
+			forks = 0
 		}
 
 		contributerSelection := s.Find("div.f6 a").Eq(2)
@@ -239,6 +266,8 @@ func (t *Trending) GetProjects(time, language string) ([]Project, error) {
 			Description:    description,
 			Language:       language,
 			Stars:          stars,
+			TotalStars:     totalStars,
+			Forks:          forks,
 			URL:            projectURL,
 			ContributorURL: contributorURL,
 			Contributor:    developer,
@@ -292,7 +321,7 @@ func (t *Trending) generateLanguages(mainSelector string) ([]Language, error) {
 
 		filterURL, _ := url.Parse(languageAddress)
 
-		re := regexp.MustCompile("github.com/trending/([^/\\?]*)")
+		re := regexp.MustCompile(`.*trending/([^/\?]*)`)
 		if matches := re.FindStringSubmatch(languageAddress); len(matches) >= 2 && len(matches[1]) > 0 {
 			languageURLName = matches[1]
 		}
